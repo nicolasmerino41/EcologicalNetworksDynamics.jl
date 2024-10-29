@@ -57,10 +57,46 @@ end
 export MetabolismFromRawValues
 
 #-------------------------------------------------------------------------------------------
-miele2019_metabolism_allometry_rates() = Allometry(;
+# miele2019_metabolism_allometry_rates() = Allometry(;
+#     producer = (a = 0, b = 0),
+#     invertebrate = (a = 0.314, b = -1 / 4),
+#     ectotherm = (a = 0.88, b = -1 / 4),
+# )
+
+# mutable struct MetabolismFromAllometry <: Metabolism
+#     allometry::Allometry
+#     MetabolismFromAllometry(; kwargs...) = new(parse_allometry_arguments(kwargs))
+#     MetabolismFromAllometry(allometry::Allometry) = new(allometry)
+#     function MetabolismFromAllometry(default::Symbol)
+#         @check_if_symbol default (:Miele2019,)
+#         return @build_from_symbol default (
+#             :Miele2019 => new(miele2019_metabolism_allometry_rates())
+#         )
+#     end
+# end
+
+# F.buildsfrom(::MetabolismFromAllometry) = [BodyMass, MetabolicClass]
+
+# function F.check(_, bp::MetabolismFromAllometry)
+#     al = bp.allometry
+#     check_template(al, miele2019_metabolism_allometry_rates(), "metabolism rate")
+# end
+
+# function F.expand!(model, bp::MetabolismFromAllometry)
+#     (; _M, _metabolic_classes) = model
+#     x = dense_nodes_allometry(bp.allometry, _M, _metabolic_classes)
+#     model.biorates.x = collect(x)
+# end
+
+# @component MetabolismFromAllometry requires(Foodweb)
+# export MetabolismFromAllometry
+
+#------------------------------------------------------------------------------------------- EXPANDED VERSION
+expanded_metabolism_allometry_rates() = Allometry(;
     producer = (a = 0, b = 0),
     invertebrate = (a = 0.314, b = -1 / 4),
     ectotherm = (a = 0.88, b = -1 / 4),
+    endotherm = (a = 0.88, b = -2 / 3),
 )
 
 mutable struct MetabolismFromAllometry <: Metabolism
@@ -68,19 +104,28 @@ mutable struct MetabolismFromAllometry <: Metabolism
     MetabolismFromAllometry(; kwargs...) = new(parse_allometry_arguments(kwargs))
     MetabolismFromAllometry(allometry::Allometry) = new(allometry)
     function MetabolismFromAllometry(default::Symbol)
-        @check_if_symbol default (:Miele2019,)
+        @check_if_symbol default (:Miele2019, :Expanded)
         return @build_from_symbol default (
-            :Miele2019 => new(miele2019_metabolism_allometry_rates())
+            :Miele2019 => new(miele2019_metabolism_allometry_rates()),
+            :Expanded => new(expanded_metabolism_allometry_rates())
         )
     end
 end
+
 
 F.buildsfrom(::MetabolismFromAllometry) = [BodyMass, MetabolicClass]
 
 function F.check(_, bp::MetabolismFromAllometry)
     al = bp.allometry
-    check_template(al, miele2019_metabolism_allometry_rates(), "metabolism rate")
+    if al == miele2019_metabolism_allometry_rates()
+        check_template(al, miele2019_metabolism_allometry_rates(), "metabolism rate")
+    elseif al == expanded_metabolism_allometry_rates()
+        check_template(al, expanded_metabolism_allometry_rates(), "expanded metabolism rate")
+    else
+        error("Unrecognized allometry template for metabolism rate.")
+    end
 end
+
 
 function F.expand!(model, bp::MetabolismFromAllometry)
     (; _M, _metabolic_classes) = model
